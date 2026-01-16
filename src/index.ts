@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { arcadeClient } from './arcade-client.js';
+import chalk from 'chalk';
+import { arcadeClient, ArcadeClient } from './arcade-client.js';
+import { InteractiveAgent, BriefingGenerator } from './agent/index.js';
 
 const program = new Command();
 
@@ -160,6 +162,79 @@ arcade
     } finally {
       await arcadeClient.disconnect();
       arcadeClient.closeReadline();
+    }
+  });
+
+arcade
+  .command('agent')
+  .description('Start an interactive Chief of Staff assistant')
+  .option('-k, --api-key <key>', 'Anthropic API key (or set ANTHROPIC_API_KEY env var)')
+  .action(async (options: { apiKey?: string }) => {
+    const apiKey = options.apiKey || process.env.ANTHROPIC_API_KEY;
+
+    if (!apiKey) {
+      console.error(chalk.red('Error: Anthropic API key required.'));
+      console.log('Set ANTHROPIC_API_KEY environment variable or use --api-key flag');
+      process.exit(1);
+    }
+
+    const client = new ArcadeClient();
+    const interactive = new InteractiveAgent(client, apiKey);
+
+    try {
+      await interactive.start();
+    } catch (error) {
+      console.error('Agent error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+arcade
+  .command('briefing')
+  .description('Generate a daily briefing from email, calendar, and Slack')
+  .option('-k, --api-key <key>', 'Anthropic API key (or set ANTHROPIC_API_KEY env var)')
+  .option('--no-slack', 'Exclude Slack from briefing')
+  .option('--no-calendar', 'Exclude calendar from briefing')
+  .option('--no-email', 'Exclude email from briefing')
+  .option('--hours <n>', 'Email lookback hours (default: 24)', '24')
+  .action(async (options: {
+    apiKey?: string;
+    slack: boolean;
+    calendar: boolean;
+    email: boolean;
+    hours: string;
+  }) => {
+    const apiKey = options.apiKey || process.env.ANTHROPIC_API_KEY;
+
+    if (!apiKey) {
+      console.error(chalk.red('Error: Anthropic API key required.'));
+      console.log('Set ANTHROPIC_API_KEY environment variable or use --api-key flag');
+      process.exit(1);
+    }
+
+    const client = new ArcadeClient();
+    const briefing = new BriefingGenerator(client, apiKey, {
+      includeSlack: options.slack,
+      includeCalendar: options.calendar,
+      includeEmail: options.email,
+      emailLookbackHours: parseInt(options.hours, 10),
+    });
+
+    try {
+      await briefing.initialize();
+      const report = await briefing.generateBriefing();
+
+      console.log(chalk.bold.cyan('\n========================================'));
+      console.log(chalk.bold.cyan('           DAILY BRIEFING'));
+      console.log(chalk.bold.cyan('========================================\n'));
+      console.log(report);
+      console.log(chalk.bold.cyan('\n========================================\n'));
+    } catch (error) {
+      console.error('Briefing error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await client.disconnect();
+      client.closeReadline();
     }
   });
 

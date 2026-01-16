@@ -9,7 +9,7 @@ import {
 
 // Configuration - can be overridden via environment variables
 const ARCADE_MCP_GATEWAY = process.env.ARCADE_MCP_GATEWAY || 'https://api.arcade.dev/mcp/gw_38IlmaQDeK9y7dhrmKYwmdlfOBE';
-const ARCADE_API_KEY = process.env.ARCADE_API_KEY || 'arc_proj1Gb46ZEn2eedSxAEZTpteigXkijxEH6gKDUuwi7me9HEx6uJyN5';
+const ARCADE_API_KEY = process.env.ARCADE_API_KEY || 'arc_proj1PEK8cRRvhUWUtUcNdqomFH5DNi5JJDirHviFdPW21Wgh4c9edU';
 const ARCADE_USER_ID = process.env.ARCADE_USER_ID || 'd@arcade.dev';
 
 export interface ArcadeTool {
@@ -119,12 +119,21 @@ export class ArcadeClient {
     const authTriggers: Record<string, { tool: string; args: Record<string, unknown> }> = {
       gmail: { tool: 'Google.ListGmailLabels', args: {} },
       google: { tool: 'Google.ListGmailLabels', args: {} },
+      calendar: {
+        tool: 'Google.ListCalendarEvents',
+        args: {
+          calendar_id: 'primary',
+          time_min: new Date().toISOString(),
+          time_max: new Date(Date.now() + 86400000).toISOString(),
+        },
+      },
+      slack: { tool: 'Slack.ListChannels', args: {} },
     };
 
     const trigger = authTriggers[service.toLowerCase()];
     if (!trigger) {
       console.error(`Unknown service: ${service}`);
-      console.log('Available services: gmail, google');
+      console.log('Available services: gmail, google, calendar, slack');
       return false;
     }
 
